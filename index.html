@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>نظام الصيانة الذكي</title>
+<title>أقرب مركز صيانة الدفع الرقمي</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -24,13 +24,9 @@ padding:6px;
 border-radius:10px;
 box-shadow:0 0 10px rgba(0,0,0,0.2);
 }
+.logo img{height:55px;}
 
-.logo img{
-height:55px;
-display:block;
-}
-
-/* لوحة التحكم */
+/* اللوحة */
 .panel{
 position:absolute;
 top:10px;
@@ -64,12 +60,12 @@ line-height:1.6;
 <img src="logo.png">
 </div>
 
-<!-- لوحة التحكم -->
+<!-- اللوحة -->
 <div class="panel">
-<b>نظام مراكز الصيانة</b><br>
+<b>نظام الصيانة</b>
 
 <select id="places">
-<option>اختر موقع...</option>
+<option>اختر موقع</option>
 </select>
 
 <div id="info"></div>
@@ -79,33 +75,33 @@ line-height:1.6;
 
 <script>
 
-// =======================
+// ======================
 // الخريطة
-// =======================
+// ======================
 const map = L.map('map').setView([24.5,45.5],6);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 attribution:'© OpenStreetMap'
 }).addTo(map);
 
-// =======================
+// ======================
 // مراكز الصيانة
-// =======================
+// ======================
 const centers = [
 { name:"الرياض", lat:24.7136, lng:46.6753 },
 { name:"جدة", lat:21.5433, lng:39.1728 },
 { name:"الدمام", lat:26.4207, lng:50.0888 },
 { name:"أبها", lat:18.2164, lng:42.5053 },
-{ name:"المدينة المنورة", lat:24.5247, lng:39.5692 }
+{ name:"المدينة", lat:24.5247, lng:39.5692 }
 ];
 
 centers.forEach(c=>{
 L.marker([c.lat,c.lng]).addTo(map).bindPopup(c.name);
 });
 
-// =======================
-// بيانات محلية (حل مضمون بدل 0 موقع)
-// =======================
+// ======================
+// مدن ثابتة (مستقر 100%)
+// ======================
 const places = [
 { name:"الرياض", lat:24.7136, lng:46.6753 },
 { name:"جدة", lat:21.5433, lng:39.1728 },
@@ -119,9 +115,7 @@ const places = [
 { name:"حائل", lat:27.5114, lng:41.7208 }
 ];
 
-// =======================
 // تعبئة القائمة
-// =======================
 let select = document.getElementById("places");
 
 places.forEach(p=>{
@@ -131,9 +125,9 @@ opt.textContent=p.name;
 select.appendChild(opt);
 });
 
-// =======================
+// ======================
 // أقرب مركزين
-// =======================
+// ======================
 function nearestTwo(lat,lng){
 
 return centers
@@ -145,22 +139,32 @@ return {...c, dist: map.distance([lat,lng],[c.lat,c.lng])};
 
 }
 
-// =======================
-// رسم طريق (بديل بسيط بدون API مشاكل)
-// =======================
-function drawLine(from,to,color){
+// ======================
+// رسم مسار حقيقي (OSRM)
+// ======================
+function drawRoute(from,to,color,cb){
 
-let line = L.polyline([
-[from.lat,from.lng],
-[to.lat,to.lng]
-],{color:color,weight:5}).addTo(map);
+fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
+.then(r=>r.json())
+.then(data=>{
 
-return line;
+let route = data.routes[0];
+
+let coords = route.geometry.coordinates.map(c=>[c[1],c[0]]);
+
+let line = L.polyline(coords,{
+color:color,
+weight:5
+}).addTo(map);
+
+cb(route.distance,route.duration,line);
+
+});
 }
 
-// =======================
+// ======================
 // تشغيل النظام
-// =======================
+// ======================
 let line1,line2;
 
 function run(lat,lng,name){
@@ -173,29 +177,46 @@ map.setView([lat,lng],7);
 let nearest = nearestTwo(lat,lng);
 
 // 🟢 الأقرب
-line1 = drawLine({lat,lng},nearest[0],'green');
+drawRoute({lat,lng},nearest[0],'green',(d1,t1,l1)=>{
+
+line1=l1;
+
+let h1=Math.floor(t1/3600);
+let m1=Math.round((t1%3600)/60);
+
+let time1 = h1>0 ? h1+" ساعة و "+m1+" دقيقة" : m1+" دقيقة";
 
 // 🔴 الثاني
-line2 = drawLine({lat,lng},nearest[1],'red');
+drawRoute({lat,lng},nearest[1],'red',(d2,t2,l2)=>{
 
-let d1 = nearest[0].dist;
-let d2 = nearest[1].dist;
+line2=l2;
+
+let h2=Math.floor(t2/3600);
+let m2=Math.round((t2%3600)/60);
+
+let time2 = h2>0 ? h2+" ساعة و "+m2+" دقيقة" : m2+" دقيقة";
 
 document.getElementById("info").innerHTML=
 
 "<b>📍 الموقع:</b> "+name+"<br><br>"+
 
 "<b>🟢 أقرب مركز:</b> "+nearest[0].name+"<br>"+
-"المسافة: "+(d1/1000).toFixed(1)+" كم<br><br>"+
+"المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
+"الوقت: "+time1+"<br><br>"+
 
 "<b>🔴 المركز الثاني:</b> "+nearest[1].name+"<br>"+
-"المسافة: "+(d2/1000).toFixed(1)+" كم";
+"المسافة: "+(d2/1000).toFixed(1)+" كم<br>"+
+"الوقت: "+time2;
+
+});
 
 }
 
-// =======================
+}
+
+// ======================
 // اختيار من القائمة
-// =======================
+// ======================
 select.onchange=function(){
 
 let p = places.find(x=>x.name==this.value);
@@ -205,13 +226,13 @@ run(p.lat,p.lng,p.name);
 
 };
 
-// =======================
+// ======================
 // اختيار من الخريطة
-// =======================
-map.on('click', function(e){
+// ======================
+map.on('click',function(e){
 
-let lat = e.latlng.lat;
-let lng = e.latlng.lng;
+let lat=e.latlng.lat;
+let lng=e.latlng.lng;
 
 L.marker([lat,lng]).addTo(map);
 
