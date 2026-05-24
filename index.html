@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>نظام مراكز الصيانة للدفع الرقمي</title>
+<title>نظام الصيانة الذكي - السعودية</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -21,11 +21,13 @@ z-index:999;
 background:white;
 padding:10px;
 border-radius:10px;
-width:300px;
+width:320px;
 box-shadow:0 0 10px rgba(0,0,0,0.2);
+max-height:90vh;
+overflow:auto;
 }
 
-select{
+select, button{
 width:100%;
 padding:8px;
 margin-top:8px;
@@ -33,7 +35,7 @@ margin-top:8px;
 
 #info{
 margin-top:10px;
-font-size:14px;
+font-size:13px;
 line-height:1.6;
 }
 </style>
@@ -42,9 +44,11 @@ line-height:1.6;
 <body>
 
 <div class="panel">
-<b>نظام مراكز الصيانة للدفع الرقمي</b>
+<b>مراكز الصيانة - السعودية</b>
 
-<select id="city"></select>
+<select id="places">
+<option>جاري تحميل المدن والقرى...</option>
+</select>
 
 <div id="info"></div>
 </div>
@@ -66,53 +70,53 @@ const centers = [
 { name:"جدة", lat:21.5433, lng:39.1728 },
 { name:"الدمام", lat:26.4207, lng:50.0888 },
 { name:"أبها", lat:18.2164, lng:42.5053 },
-{ name:"المدينة المنورة", lat:24.5247, lng:39.5692 },
-{ name:"تبوك", lat:28.3998, lng:36.5715 }
+{ name:"المدينة", lat:24.5247, lng:39.5692 }
 ];
 
-// المدن
-const cities = [
-{ name:"الرياض", lat:24.7136, lng:46.6753 },
-{ name:"جدة", lat:21.5433, lng:39.1728 },
-{ name:"الدمام", lat:26.4207, lng:50.0888 },
-{ name:"مكة", lat:21.3891, lng:39.8579 },
-{ name:"المدينة المنورة", lat:24.5247, lng:39.5692 },
-{ name:"الطائف", lat:21.2703, lng:40.4158 },
-{ name:"تبوك", lat:28.3998, lng:36.5715 },
-{ name:"أبها", lat:18.2164, lng:42.5053 },
-{ name:"خميس مشيط", lat:18.3000, lng:42.7333 },
-{ name:"نجران", lat:17.5656, lng:44.2289 },
-{ name:"جازان", lat:16.8892, lng:42.5510 },
-{ name:"حائل", lat:27.5114, lng:41.7208 },
-{ name:"القصيم", lat:26.3260, lng:43.9750 },
-{ name:"الأحساء", lat:25.3647, lng:49.5876 },
-{ name:"الجبيل", lat:27.0046, lng:49.6665 },
-{ name:"الخبر", lat:26.2172, lng:50.1971 },
-{ name:"الباحة", lat:20.0129, lng:41.4677 },
-{ name:"ينبع", lat:24.0895, lng:38.0637 },
-{ name:"عرعر", lat:30.9753, lng:41.0381 },
-{ name:"سكاكا", lat:29.9697, lng:40.2064 },
-{ name:"القريات", lat:31.3317, lng:37.3433 },
-{ name:"الخرج", lat:24.1559, lng:47.3345 },
-{ name:"بالجرشي", lat:19.8656, lng:41.5776 }
-];
+centers.forEach(c=>{
+L.marker([c.lat,c.lng]).addTo(map).bindPopup("مركز: "+c.name);
+});
 
-// تعبئة القائمة
-const select = document.getElementById("city");
+let places = [];
+let select = document.getElementById("places");
 
-cities.forEach(c=>{
+// 🚀 جلب كل المدن والقرى من OpenStreetMap
+async function loadPlaces(){
+
+// حدود السعودية
+let query = `
+[out:json];
+area["name"="Saudi Arabia"]->.a;
+node["place"](area.a);
+out 2000;
+`;
+
+let url = "https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);
+
+let res = await fetch(url);
+let data = await res.json();
+
+places = data.elements.map(p=>({
+name: p.tags.name,
+lat: p.lat,
+lng: p.lon
+})).filter(p=>p.name);
+
+select.innerHTML = "<option>اختر مدينة أو قرية</option>";
+
+places.forEach(p=>{
 let opt=document.createElement("option");
-opt.value=c.name;
-opt.textContent=c.name;
+opt.value=p.name;
+opt.textContent=p.name;
 select.appendChild(opt);
 });
 
-// رسم المراكز
-centers.forEach(c=>{
-L.marker([c.lat,c.lng]).addTo(map).bindPopup(c.name);
-});
+console.log("Loaded places:", places.length);
+}
 
-// حساب أقرب مركزين
+loadPlaces();
+
+// أقرب مركزين
 function nearestTwo(lat,lng){
 
 return centers
@@ -124,7 +128,7 @@ return {...c, dist: map.distance([lat,lng],[c.lat,c.lng])};
 
 }
 
-// رسم طريق OSRM
+// رسم طريق
 function drawRoute(from,to,color,cb){
 
 fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
@@ -132,44 +136,45 @@ fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};
 .then(data=>{
 
 let route = data.routes[0];
-
 let coords = route.geometry.coordinates.map(c=>[c[1],c[0]]);
 
 let line = L.polyline(coords,{color:color}).addTo(map);
 
-cb(route.distance, route.duration, line);
+cb(route.distance,route.duration,line);
 
 });
 
 }
 
-// عند اختيار مدينة
+let line1,line2;
+
+// عند الاختيار
 select.onchange=function(){
 
-let city = cities.find(c=>c.name==this.value);
+let city = places.find(p=>p.name==this.value);
+if(!city) return;
+
+map.setView([city.lat,city.lng],8);
 
 let nearest = nearestTwo(city.lat,city.lng);
 
-map.setView([city.lat,city.lng],7);
+if(line1) map.removeLayer(line1);
+if(line2) map.removeLayer(line2);
 
-// تنظيف خطوط قديمة
-if(window.l1) map.removeLayer(window.l1);
-if(window.l2) map.removeLayer(window.l2);
+// مركز 1
+drawRoute(city,nearest[0],'blue',(d1,t1,l1)=>{
 
-// ROUTE 1
-drawRoute(city,nearest[0],'blue',(d1,t1,line1)=>{
-
-window.l1=line1;
+line1=l1;
 
 let h1=Math.floor(t1/3600);
 let m1=Math.round((t1%3600)/60);
 
 let time1 = h1>0 ? h1+" ساعة و "+m1+" دقيقة" : m1+" دقيقة";
 
-// ROUTE 2
-drawRoute(city,nearest[1],'green',(d2,t2,line2)=>{
+// مركز 2
+drawRoute(city,nearest[1],'green',(d2,t2,l2)=>{
 
-window.l2=line2;
+line2=l2;
 
 let h2=Math.floor(t2/3600);
 let m2=Math.round((t2%3600)/60);
@@ -177,12 +182,13 @@ let m2=Math.round((t2%3600)/60);
 let time2 = h2>0 ? h2+" ساعة و "+m2+" دقيقة" : m2+" دقيقة";
 
 document.getElementById("info").innerHTML=
+"<b>الموقع:</b> "+city.name+"<br><br>"+
 
-"<b>المركز القريب الأول:</b> "+nearest[0].name+"<br>"+
+"<b>أقرب مركز 1:</b> "+nearest[0].name+"<br>"+
 "المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+time1+"<br><br>"+
 
-"<b>المركز القريب الثاني:</b> "+nearest[1].name+"<br>"+
+"<b>أقرب مركز 2:</b> "+nearest[1].name+"<br>"+
 "المسافة: "+(d2/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+time2;
 
