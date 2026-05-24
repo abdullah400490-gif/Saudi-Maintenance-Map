@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>نظام الصيانة الذكي - السعودية</title>
+<title>نظام الصيانة الذكي</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -27,7 +27,7 @@ max-height:90vh;
 overflow:auto;
 }
 
-select, button{
+select{
 width:100%;
 padding:8px;
 margin-top:8px;
@@ -38,16 +38,22 @@ margin-top:10px;
 font-size:13px;
 line-height:1.6;
 }
+
+small{
+color:gray;
+}
 </style>
 </head>
 
 <body>
 
 <div class="panel">
-<b>مراكز الصيانة - السعودية</b>
+<b>نظام مراكز الصيانة</b>
+
+<small>اختر من القائمة أو اضغط على الخريطة</small>
 
 <select id="places">
-<option>جاري تحميل المدن والقرى...</option>
+<option>جاري تحميل المواقع...</option>
 </select>
 
 <div id="info"></div>
@@ -80,29 +86,38 @@ L.marker([c.lat,c.lng]).addTo(map).bindPopup("مركز: "+c.name);
 let places = [];
 let select = document.getElementById("places");
 
-// 🚀 جلب كل المدن والقرى من OpenStreetMap
+let line1, line2;
+
+// ===============================
+// تحميل المدن والقرى
+// ===============================
 async function loadPlaces(){
 
-// حدود السعودية
+select.innerHTML = "<option>جاري التحميل...</option>";
+
 let query = `
-[out:json];
+[out:json][timeout:25];
 area["name"="Saudi Arabia"]->.a;
 node["place"](area.a);
-out 2000;
+out body;
 `;
 
-let url = "https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query);
+try{
 
-let res = await fetch(url);
+let res = await fetch("https://overpass-api.de/api/interpreter?data="+encodeURIComponent(query));
 let data = await res.json();
 
-places = data.elements.map(p=>({
+places = data.elements
+.filter(p => p.tags && p.tags.name && p.lat && p.lon)
+.map(p => ({
 name: p.tags.name,
 lat: p.lat,
 lng: p.lon
-})).filter(p=>p.name);
+}));
 
-select.innerHTML = "<option>اختر مدينة أو قرية</option>";
+places.sort((a,b)=>a.name.localeCompare(b.name,"ar"));
+
+select.innerHTML = "<option value=''>اختر مدينة أو قرية</option>";
 
 places.forEach(p=>{
 let opt=document.createElement("option");
@@ -111,12 +126,22 @@ opt.textContent=p.name;
 select.appendChild(opt);
 });
 
-console.log("Loaded places:", places.length);
+document.getElementById("info").innerHTML =
+"تم تحميل: " + places.length + " موقع";
+
+}catch(e){
+document.getElementById("info").innerHTML =
+"خطأ في تحميل البيانات";
+console.log(e);
+}
+
 }
 
 loadPlaces();
 
+// ===============================
 // أقرب مركزين
+// ===============================
 function nearestTwo(lat,lng){
 
 return centers
@@ -128,7 +153,9 @@ return {...c, dist: map.distance([lat,lng],[c.lat,c.lng])};
 
 }
 
+// ===============================
 // رسم طريق
+// ===============================
 function drawRoute(from,to,color,cb){
 
 fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
@@ -146,23 +173,20 @@ cb(route.distance,route.duration,line);
 
 }
 
-let line1,line2;
-
-// عند الاختيار
-select.onchange=function(){
-
-let city = places.find(p=>p.name==this.value);
-if(!city) return;
-
-map.setView([city.lat,city.lng],8);
-
-let nearest = nearestTwo(city.lat,city.lng);
+// ===============================
+// تشغيل النظام
+// ===============================
+function run(lat,lng,name){
 
 if(line1) map.removeLayer(line1);
 if(line2) map.removeLayer(line2);
 
+map.setView([lat,lng],7);
+
+let nearest = nearestTwo(lat,lng);
+
 // مركز 1
-drawRoute(city,nearest[0],'blue',(d1,t1,l1)=>{
+drawRoute({lat,lng},nearest[0],'blue',(d1,t1,l1)=>{
 
 line1=l1;
 
@@ -172,7 +196,7 @@ let m1=Math.round((t1%3600)/60);
 let time1 = h1>0 ? h1+" ساعة و "+m1+" دقيقة" : m1+" دقيقة";
 
 // مركز 2
-drawRoute(city,nearest[1],'green',(d2,t2,l2)=>{
+drawRoute({lat,lng},nearest[1],'green',(d2,t2,l2)=>{
 
 line2=l2;
 
@@ -182,7 +206,7 @@ let m2=Math.round((t2%3600)/60);
 let time2 = h2>0 ? h2+" ساعة و "+m2+" دقيقة" : m2+" دقيقة";
 
 document.getElementById("info").innerHTML=
-"<b>الموقع:</b> "+city.name+"<br><br>"+
+"<b>الموقع:</b> "+name+"<br><br>"+
 
 "<b>أقرب مركز 1:</b> "+nearest[0].name+"<br>"+
 "المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
@@ -196,7 +220,33 @@ document.getElementById("info").innerHTML=
 
 });
 
+}
+
+// ===============================
+// اختيار من القائمة
+// ===============================
+select.onchange=function(){
+
+let p = places.find(x=>x.name==this.value);
+if(!p) return;
+
+run(p.lat,p.lng,p.name);
+
 };
+
+// ===============================
+// اختيار من الخريطة (CLICK)
+// ===============================
+map.on('click', function(e){
+
+let lat = e.latlng.lat;
+let lng = e.latlng.lng;
+
+L.marker([lat,lng]).addTo(map).bindPopup("موقع مختار").openPopup();
+
+run(lat,lng,"موقع من الخريطة");
+
+});
 
 </script>
 
