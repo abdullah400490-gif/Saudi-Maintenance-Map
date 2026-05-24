@@ -156,8 +156,8 @@ map.setView([city.lat,city.lng],7);
 if(window.l1) map.removeLayer(window.l1);
 if(window.l2) map.removeLayer(window.l2);
 
-// ROUTE 1
-drawRoute(city,nearest[0],'blue',(d1,t1,line1)=>{
+// 🟢 ROUTE 1 (الأقرب)
+drawRoute(city,nearest[0],'green',(d1,t1,line1)=>{
 
 window.l1=line1;
 
@@ -166,8 +166,8 @@ let m1=Math.round((t1%3600)/60);
 
 let time1 = h1>0 ? h1+" ساعة و "+m1+" دقيقة" : m1+" دقيقة";
 
-// ROUTE 2
-drawRoute(city,nearest[1],'green',(d2,t2,line2)=>{
+// 🔴 ROUTE 2 (الثاني)
+drawRoute(city,nearest[1],'red',(d2,t2,line2)=>{
 
 window.l2=line2;
 
@@ -178,11 +178,11 @@ let time2 = h2>0 ? h2+" ساعة و "+m2+" دقيقة" : m2+" دقيقة";
 
 document.getElementById("info").innerHTML=
 
-"<b>المركز القريب الأول:</b> "+nearest[0].name+"<br>"+
+"<b>🟢 المركز القريب الأول:</b> "+nearest[0].name+"<br>"+
 "المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+time1+"<br><br>"+
 
-"<b>المركز القريب الثاني:</b> "+nearest[1].name+"<br>"+
+"<b>🔴 المركز القريب الثاني:</b> "+nearest[1].name+"<br>"+
 "المسافة: "+(d2/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+time2;
 
