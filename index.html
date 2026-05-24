@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>خريطة مراكز الصيانة</title>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:Tahoma;
+}
+
+#map{
+height:100vh;
+}
+
+.info{
+position:absolute;
+top:10px;
+right:10px;
+z-index:1000;
+background:white;
+padding:10px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,.2);
+width:250px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="info">
+<h3>مراكز الصيانة</h3>
+<p>اضغط على أي مدينة لمعرفة أقرب مركز.</p>
+</div>
+
+<div id="map"></div>
+
+<script>
+
+const map = L.map('map').setView([24.5,45.5],6);
+
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{
+maxZoom:19
+}
+).addTo(map);
+
+const centers = [
+
+{
+name:"مركز الرياض",
+lat:24.7136,
+lng:46.6753
+},
+
+{
+name:"مركز جدة",
+lat:21.5433,
+lng:39.1728
+},
+
+{
+name:"مركز الدمام",
+lat:26.4207,
+lng:50.0888
+}
+
+];
+
+const cities = [
+
+{
+name:"أبها",
+lat:18.2164,
+lng:42.5053
+},
+
+{
+name:"تبوك",
+lat:28.3998,
+lng:36.5715
+},
+
+{
+name:"حائل",
+lat:27.5114,
+lng:41.7208
+},
+
+{
+name:"عرعر",
+lat:30.9753,
+lng:41.0381
+}
+
+];
+
+centers.forEach(center=>{
+
+L.marker([center.lat,center.lng])
+.addTo(map)
+.bindPopup(center.name);
+
+});
+
+let currentLine = null;
+
+cities.forEach(city=>{
+
+const cityMarker = L.circleMarker(
+[city.lat,city.lng],
+{
+radius:8
+}
+).addTo(map);
+
+cityMarker.bindPopup(city.name);
+
+cityMarker.on('click',()=>{
+
+if(currentLine){
+map.removeLayer(currentLine);
+}
+
+let nearest = null;
+let shortestDistance = Infinity;
+
+centers.forEach(center=>{
+
+const distance = map.distance(
+[city.lat,city.lng],
+[center.lat,center.lng]
+);
+
+if(distance < shortestDistance){
+
+shortestDistance = distance;
+nearest = center;
+
+}
+
+});
+
+currentLine = L.polyline(
+[
+[city.lat,city.lng],
+[nearest.lat,nearest.lng]
+]
+).addTo(map);
+
+cityMarker.bindPopup(
+
+"<b>" + city.name + "</b><br>" +
+"أقرب مركز:<br>" +
+nearest.name + "<br><br>" +
+"المسافة التقريبية:<br>" +
+Math.round(shortestDistance / 1000) +
+" كم"
+
+).openPopup();
+
+});
+
+});
+
+</script>
+
+</body>
+</html>
