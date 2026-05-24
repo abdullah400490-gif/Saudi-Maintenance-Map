@@ -1,49 +1,47 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>نظام مراكز الصيانة</title>
 
-<title>خريطة مراكز الصيانة</title>
-
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <style>
+body { margin:0; font-family:Tahoma; }
 
-body{
-margin:0;
-font-family:Tahoma;
-}
+#map { height:100vh; }
 
-#map{
-height:100vh;
-}
-
-.info{
+.panel{
 position:absolute;
 top:10px;
 right:10px;
-z-index:1000;
+z-index:999;
 background:white;
 padding:10px;
 border-radius:10px;
-box-shadow:0 0 10px rgba(0,0,0,.2);
-width:250px;
+width:260px;
+box-shadow:0 0 10px rgba(0,0,0,0.2);
 }
 
+select{
+width:100%;
+padding:8px;
+margin-top:5px;
+}
 </style>
-
 </head>
 
 <body>
 
-<div class="info">
-<h3>مراكز الصيانة</h3>
-<p>اضغط على أي مدينة لمعرفة أقرب مركز.</p>
+<div class="panel">
+<b>اختر المدينة</b>
+<select id="citySelect">
+<option value="">-- اختر --</option>
+</select>
+<div id="result"></div>
 </div>
 
 <div id="map"></div>
@@ -52,128 +50,75 @@ width:250px;
 
 const map = L.map('map').setView([24.8,45.5],5);
 
-L.tileLayer(
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-{
-maxZoom:19
-}
-).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+// المراكز
 const centers = [
-
-{
-name:"مركز الرياض",
-lat:24.7136,
-lng:46.6753
-},
-
-{
-name:"مركز جدة",
-lat:21.5433,
-lng:39.1728
-},
-
-{
-name:"مركز الدمام",
-lat:26.4207,
-lng:50.0888
-}
-
+{ name:"الرياض", lat:24.7136, lng:46.6753 },
+{ name:"جدة", lat:21.5433, lng:39.1728 },
+{ name:"الدمام", lat:26.4207, lng:50.0888 },
+{ name:"الخبر", lat:26.2172, lng:50.1971 },
+{ name:"أبها", lat:18.2164, lng:42.5053 }
 ];
 
+// المدن
 const cities = [
-
-{
-name:"أبها",
-lat:18.2164,
-lng:42.5053
-},
-
-{
-name:"تبوك",
-lat:28.3998,
-lng:36.5715
-},
-
-{
-name:"حائل",
-lat:27.5114,
-lng:41.7208
-},
-
-{
-name:"عرعر",
-lat:30.9753,
-lng:41.0381
-}
-
+{ name:"الرياض", lat:24.7136, lng:46.6753 },
+{ name:"جدة", lat:21.5433, lng:39.1728 },
+{ name:"الدمام", lat:26.4207, lng:50.0888 },
+{ name:"أبها", lat:18.2164, lng:42.5053 },
+{ name:"تبوك", lat:28.3998, lng:36.5715 },
+{ name:"حائل", lat:27.5114, lng:41.7208 }
 ];
 
-centers.forEach(center=>{
-
-L.marker([center.lat,center.lng])
-.addTo(map)
-.bindPopup(center.name);
-
+// عرض المراكز على الخريطة
+centers.forEach(c=>{
+L.marker([c.lat,c.lng]).addTo(map).bindPopup(c.name);
 });
 
-let currentLine = null;
+// تعبئة القائمة
+const select = document.getElementById("citySelect");
 
 cities.forEach(city=>{
-
-const cityMarker = L.circleMarker(
-[city.lat,city.lng],
-{
-radius:8
-}
-).addTo(map);
-
-cityMarker.bindPopup(city.name);
-
-cityMarker.on('click',()=>{
-
-if(currentLine){
-map.removeLayer(currentLine);
-}
-
-let nearest = null;
-let shortestDistance = Infinity;
-
-centers.forEach(center=>{
-
-const distance = map.distance(
-[city.lat,city.lng],
-[center.lat,center.lng]
-);
-
-if(distance < shortestDistance){
-
-shortestDistance = distance;
-nearest = center;
-
-}
-
+let opt = document.createElement("option");
+opt.value = city.name;
+opt.textContent = city.name;
+select.appendChild(opt);
 });
 
-currentLine = L.polyline(
-[
-[city.lat,city.lng],
-[nearest.lat,nearest.lng]
-]
-).addTo(map);
+// حساب أقرب مركز
+function getNearest(lat,lng){
+let nearest=null;
+let distMin=Infinity;
 
-cityMarker.bindPopup(
-
-"<b>" + city.name + "</b><br>" +
-"أقرب مركز:<br>" +
-nearest.name + "<br><br>" +
-"المسافة التقريبية:<br>" +
-Math.round(shortestDistance / 1000) +
-" كم"
-
-).openPopup();
-
+centers.forEach(c=>{
+let d = map.distance([lat,lng],[c.lat,c.lng]);
+if(d < distMin){
+distMin=d;
+nearest=c;
+}
 });
+
+return nearest;
+}
+
+// عند اختيار مدينة
+select.addEventListener("change", function(){
+
+let city = cities.find(c=>c.name === this.value);
+if(!city) return;
+
+let nearest = getNearest(city.lat, city.lng);
+
+L.polyline([
+[city.lat, city.lng],
+[nearest.lat, nearest.lng]
+]).addTo(map);
+
+map.setView([city.lat, city.lng],6);
+
+document.getElementById("result").innerHTML =
+"أقرب مركز: <b>" + nearest.name + "</b>";
 
 });
 
