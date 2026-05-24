@@ -39,21 +39,22 @@ font-size:13px;
 line-height:1.6;
 }
 
-small{
-color:gray;
-}
+small{color:gray;}
 </style>
 </head>
 
 <body>
 
+<div class="logo">
+<img src="logo.png">
+</div>
+  
 <div class="panel">
-<b>نظام مراكز الصيانة</b>
-
-<small>اختر من القائمة أو اضغط على الخريطة</small>
+<b>نظام مراكز الصيانة</b><br>
+<small>اختار مدينة أو اضغط على الخريطة</small>
 
 <select id="places">
-<option>جاري تحميل المواقع...</option>
+<option>جاري تحميل البيانات...</option>
 </select>
 
 <div id="info"></div>
@@ -63,34 +64,43 @@ color:gray;
 
 <script>
 
+// ======================
 // الخريطة
+// ======================
 const map = L.map('map').setView([24.5,45.5],6);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 attribution:'© OpenStreetMap'
 }).addTo(map);
 
+// ======================
 // مراكز الصيانة
+// ======================
 const centers = [
 { name:"الرياض", lat:24.7136, lng:46.6753 },
 { name:"جدة", lat:21.5433, lng:39.1728 },
 { name:"الدمام", lat:26.4207, lng:50.0888 },
 { name:"أبها", lat:18.2164, lng:42.5053 },
-{ name:"المدينة", lat:24.5247, lng:39.5692 }
+{ name:"المدينة المنورة", lat:24.5247, lng:39.5692 },
+{ name:"تبوك", lat:28.3998, lng:36.5715 }
 ];
 
+// markers
 centers.forEach(c=>{
 L.marker([c.lat,c.lng]).addTo(map).bindPopup("مركز: "+c.name);
 });
 
+// ======================
+// بيانات الأماكن
+// ======================
 let places = [];
 let select = document.getElementById("places");
 
 let line1, line2;
 
-// ===============================
+// ======================
 // تحميل المدن والقرى
-// ===============================
+// ======================
 async function loadPlaces(){
 
 select.innerHTML = "<option>جاري التحميل...</option>";
@@ -131,7 +141,7 @@ document.getElementById("info").innerHTML =
 
 }catch(e){
 document.getElementById("info").innerHTML =
-"خطأ في تحميل البيانات";
+"فشل تحميل البيانات";
 console.log(e);
 }
 
@@ -139,9 +149,9 @@ console.log(e);
 
 loadPlaces();
 
-// ===============================
+// ======================
 // أقرب مركزين
-// ===============================
+// ======================
 function nearestTwo(lat,lng){
 
 return centers
@@ -153,9 +163,9 @@ return {...c, dist: map.distance([lat,lng],[c.lat,c.lng])};
 
 }
 
-// ===============================
+// ======================
 // رسم طريق
-// ===============================
+// ======================
 function drawRoute(from,to,color,cb){
 
 fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
@@ -165,7 +175,7 @@ fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};
 let route = data.routes[0];
 let coords = route.geometry.coordinates.map(c=>[c[1],c[0]]);
 
-let line = L.polyline(coords,{color:color}).addTo(map);
+let line = L.polyline(coords,{color:color,weight:5}).addTo(map);
 
 cb(route.distance,route.duration,line);
 
@@ -173,9 +183,9 @@ cb(route.distance,route.duration,line);
 
 }
 
-// ===============================
+// ======================
 // تشغيل النظام
-// ===============================
+// ======================
 function run(lat,lng,name){
 
 if(line1) map.removeLayer(line1);
@@ -185,8 +195,8 @@ map.setView([lat,lng],7);
 
 let nearest = nearestTwo(lat,lng);
 
-// مركز 1
-drawRoute({lat,lng},nearest[0],'blue',(d1,t1,l1)=>{
+// 🟢 الأقرب
+drawRoute({lat,lng},nearest[0],'green',(d1,t1,l1)=>{
 
 line1=l1;
 
@@ -195,8 +205,8 @@ let m1=Math.round((t1%3600)/60);
 
 let time1 = h1>0 ? h1+" ساعة و "+m1+" دقيقة" : m1+" دقيقة";
 
-// مركز 2
-drawRoute({lat,lng},nearest[1],'green',(d2,t2,l2)=>{
+// 🔴 الثاني
+drawRoute({lat,lng},nearest[1],'red',(d2,t2,l2)=>{
 
 line2=l2;
 
@@ -206,13 +216,14 @@ let m2=Math.round((t2%3600)/60);
 let time2 = h2>0 ? h2+" ساعة و "+m2+" دقيقة" : m2+" دقيقة";
 
 document.getElementById("info").innerHTML=
-"<b>الموقع:</b> "+name+"<br><br>"+
 
-"<b>أقرب مركز 1:</b> "+nearest[0].name+"<br>"+
+"<b>📍 الموقع:</b> "+name+"<br><br>"+
+
+"<b>🟢 أقرب مركز:</b> "+nearest[0].name+"<br>"+
 "المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+time1+"<br><br>"+
 
-"<b>أقرب مركز 2:</b> "+nearest[1].name+"<br>"+
+"<b>🔴 المركز الثاني:</b> "+nearest[1].name+"<br>"+
 "المسافة: "+(d2/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+time2;
 
@@ -222,9 +233,9 @@ document.getElementById("info").innerHTML=
 
 }
 
-// ===============================
+// ======================
 // اختيار من القائمة
-// ===============================
+// ======================
 select.onchange=function(){
 
 let p = places.find(x=>x.name==this.value);
@@ -234,9 +245,9 @@ run(p.lat,p.lng,p.name);
 
 };
 
-// ===============================
-// اختيار من الخريطة (CLICK)
-// ===============================
+// ======================
+// اختيار من الخريطة
+// ======================
 map.on('click', function(e){
 
 let lat = e.latlng.lat;
