@@ -163,10 +163,21 @@ drawRoute(city,nearest[0],(dist,time)=>{
 
 map.setView([city.lat,city.lng],7);
 
-document.getElementById("info").innerHTML=
-"أقرب مركز: <b>"+nearest[0].name+"</b><br>"+
-"المسافة: "+(dist/1000).toFixed(1)+" كم<br>"+
-"الوقت: "+(time/60).toFixed(0)+" دقيقة";
+let hours = Math.floor(time / 3600);
+let minutes = Math.round((time % 3600) / 60);
+
+let timeText = "";
+if(hours > 0){
+timeText = hours + " ساعة و " + minutes + " دقيقة";
+} else {
+timeText = minutes + " دقيقة";
+}
+
+document.getElementById("info").innerHTML =
+"أقرب مركز 1: <b>" + nearest[0].name + "</b><br>" +
+"أقرب مركز 2: <b>" + nearest[1].name + "</b><br>" +
+"المسافة: " + (dist/1000).toFixed(1) + " كم<br>" +
+"الوقت: " + timeText;
 
 });
 
