@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>نظام مراكز الصيانة</title>
+<title>نظام المناطق النائية ومراكز الصيانة للدفع الرقمي</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -60,10 +60,10 @@ box-shadow:0 0 10px rgba(0,0,0,0.2);
 
 <!-- لوحة التحكم -->
 <div class="panel">
-<b>نظام مراكز الصيانة</b>
+<b>نظام المناطق النائية ومراكز الصيانة للدفع الرقمي</b>
 
 <select id="city">
-<option>اختر مدينة</option>
+<option>اختر مدينة أو اضغط عليها من الخريطة</option>
 </select>
 
 <div id="info"></div>
@@ -215,7 +215,7 @@ document.getElementById("info").innerHTML=
 "المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+h1+" ساعة و "+m1+" دقيقة<br><br>"+
 
-"<b>🔴 المركز الثاني:</b> "+nearest[1].name+"<br>"+
+"<b>🔴 أقرب مركز ثاني:</b> "+nearest[1].name+"<br>"+
 "المسافة: "+(d2/1000).toFixed(1)+" كم<br>"+
 "الوقت: "+h2+" ساعة و "+m2+" دقيقة";
 
