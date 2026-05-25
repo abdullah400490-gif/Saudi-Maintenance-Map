@@ -192,15 +192,15 @@ if(window.l1) map.removeLayer(window.l1);
 if(window.l2) map.removeLayer(window.l2);
 
 // 🟢 الأقرب
-drawRoute({lat,lng},nearest[0],'green',(d1,t1,line1)=>{
+drawRoute({lat,lng},nearest[1],'red',(d2,t2,line2)=>{
 
 window.l1=line1;
 
 // 🔴 الثاني
-drawRoute({lat,lng},nearest[1],'red',(d2,t2,line2)=>{
+drawRoute({lat,lng},nearest[0],'green',(d1,t1,line1)=>{
 
-window.l2=line2;
-
+window.l1=line1;
+  
 let h1=Math.floor(t1/3600);
 let m1=Math.round((t1%3600)/60);
 
