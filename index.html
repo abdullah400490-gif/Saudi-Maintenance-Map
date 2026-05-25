@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>نظام المناطق النائية ومراكز الصيانة للدفع الرقمي</title>
+<title>نظام المناطق النائية</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -32,26 +32,19 @@ box-shadow:0 0 10px rgba(0,0,0,0.2);
 text-align:center;
 }
 
-select{
+#city{
 width:100%;
 padding:8px;
 margin-top:8px;
 border-radius:8px;
-border:1px solid #ccc;
+direction:rtl;
+text-align:right;
+text-align-last:right;
 }
 
-/* ✅ التعديل هنا فقط */
-#city {
-  direction: rtl;
-  text-align: right;
-  text-align-last: right;
-  padding-right: 10px;
+#city option{
+text-align:right;
 }
-
-#city option {
-  text-align: right;
-}
-/* ------------------ */
 
 #info{
 margin-top:10px;
@@ -59,44 +52,19 @@ font-size:13px;
 line-height:1.8;
 text-align:right;
 }
-
-.logo{
-position:absolute;
-top:10px;
-left:10px;
-z-index:9999;
-background:white;
-padding:6px;
-border-radius:10px;
-box-shadow:0 0 10px rgba(0,0,0,0.2);
-}
-
-.logo img{
-width:140px;
-height:auto;
-display:block;
-}
 </style>
 </head>
 
 <body>
 
-<!-- الشعار -->
-<div class="logo">
-<img src="./logo.png" alt="Logo">
-</div>
-
-<!-- لوحة التحكم -->
 <div class="panel">
-
-<b>نظام المناطق النائية ومراكز الصيانة للدفع الرقمي</b>
+<b>نظام المناطق النائية ومراكز الصيانة</b>
 
 <select id="city">
 <option>اختر مدينة أو اضغط عليها من الخريطة</option>
 </select>
 
 <div id="info"></div>
-
 </div>
 
 <div id="map"></div>
@@ -108,201 +76,55 @@ display:block;
 // ======================
 const map = L.map('map').setView([24.5,45.5],6);
 
-// ======================
-// خريطة OpenStreetMap
-// ======================
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 attribution:'© OpenStreetMap'
 }).addTo(map);
 
 // ======================
-// طبقة صورة السعودية
+// ألوان المناطق
 // ======================
-const imageBounds = [
-[15.8, 33.5],
-[32.8, 56.5]
+function getColor(name){
+
+const teal = "#70CACB";
+const purple = "#56459C";
+
+const tealRegions = [
+"الحدود الشمالية",
+"القصيم",
+"الشرقية",
+"نجران",
+"جازان",
+"مكة",
+"تبوك"
 ];
 
-L.imageOverlay('saudi-map.png', imageBounds, {
-opacity:0.12
+return tealRegions.includes(name) ? teal : purple;
+}
+
+// ======================
+// رسم مناطق السعودية (GeoJSON)
+// ======================
+fetch("saudi-regions.geojson")
+.then(r => r.json())
+.then(data => {
+
+L.geoJSON(data, {
+
+style: function(feature){
+return {
+fillColor: getColor(feature.properties.name),
+color: "#ffffff",
+weight: 1,
+fillOpacity: 0.7
+};
+},
+
+onEachFeature: function(feature, layer){
+layer.bindPopup(feature.properties.name);
+}
+
 }).addTo(map);
 
-// ======================
-// مراكز الصيانة
-// ======================
-const centers = [
-
-{ name:"الرياض", lat:24.7136, lng:46.6753 },
-{ name:"جدة", lat:21.5433, lng:39.1728 },
-{ name:"الدمام", lat:26.4207, lng:50.0888 },
-{ name:"أبها", lat:18.2164, lng:42.5053 },
-{ name:"المدينة المنورة", lat:24.5247, lng:39.5692 },
-{ name:"تبوك", lat:28.3998, lng:36.5715 },
-{ name:"الأحساء", lat:25.386311, lng:49.568650 }
-
-];
-
-// ======================
-// المدن
-// ======================
-const cities = [
-
-{ name:"الرياض", lat:24.7136, lng:46.6753 },
-{ name:"جدة", lat:21.5433, lng:39.1728 },
-{ name:"مكة", lat:21.3891, lng:39.8579 },
-{ name:"الدمام", lat:26.4207, lng:50.0888 },
-{ name:"المدينة المنورة", lat:24.5247, lng:39.5692 },
-{ name:"الطائف", lat:21.2703, lng:40.4158 },
-{ name:"تبوك", lat:28.3998, lng:36.5715 },
-{ name:"أبها", lat:18.2164, lng:42.5053 },
-{ name:"نجران", lat:17.5656, lng:44.2289 },
-{ name:"جازان", lat:16.8892, lng:42.5510 },
-{ name:"حائل", lat:27.5114, lng:41.7208 },
-{ name:"القصيم", lat:26.3260, lng:43.9750 },
-{ name:"الأحساء", lat:25.3647, lng:49.5876 },
-{ name:"الخبر", lat:26.2172, lng:50.1971 },
-{ name:"الجبيل", lat:27.0046, lng:49.6665 },
-{ name:"الباحة", lat:20.0129, lng:41.4677 },
-{ name:"ينبع", lat:24.0895, lng:38.0637 },
-{ name:"عرعر", lat:30.9753, lng:41.0381 },
-{ name:"سكاكا", lat:29.9697, lng:40.2064 },
-{ name:"القريات", lat:31.3317, lng:37.3433 },
-{ name:"الخرج", lat:24.1559, lng:47.3345 },
-{ name:"بالجرشي", lat:19.8656, lng:41.5776 }
-
-];
-
-// تعبئة القائمة
-let select = document.getElementById("city");
-
-cities.forEach(c=>{
-let opt=document.createElement("option");
-opt.value=c.name;
-opt.textContent=c.name;
-select.appendChild(opt);
-});
-
-// باقي الكود بدون تغيير
-centers.forEach(c=>{
-L.marker([c.lat,c.lng])
-.addTo(map)
-.bindPopup(c.name);
-});
-
-async function nearestTwo(lat,lng){
-
-let results = [];
-
-for (let c of centers){
-
-let response = await fetch(
-`https://router.project-osrm.org/route/v1/driving/${lng},${lat};${c.lng},${c.lat}?overview=false`
-);
-
-let data = await response.json();
-
-let route = data.routes[0];
-
-results.push({
-...c,
-distance: route.distance,
-duration: route.duration
-});
-
-}
-
-results.sort((a,b)=>a.duration-b.duration);
-
-return results.slice(0,2);
-
-}
-
-function drawRoute(from,to,color,cb){
-
-fetch(`https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`)
-.then(r=>r.json())
-.then(data=>{
-
-let route = data.routes[0];
-
-let coords = route.geometry.coordinates.map(c=>[c[1],c[0]]);
-
-let options = {
-color: color,
-weight:4,
-opacity:0.9
-};
-
-if(color === 'red'){
-options.dashArray = '12,10';
-}
-
-let line = L.polyline(coords, options).addTo(map);
-
-if(color === 'green'){
-line.bringToFront();
-}
-
-cb(route.distance, route.duration, line);
-
-});
-
-}
-
-async function run(lat,lng,name){
-
-map.setView([lat,lng],7);
-
-let nearest = await nearestTwo(lat,lng);
-
-if(window.l1) map.removeLayer(window.l1);
-if(window.l2) map.removeLayer(window.l2);
-
-if(window.clickedMarker){
-map.removeLayer(window.clickedMarker);
-}
-
-window.clickedMarker = L.marker([lat,lng]).addTo(map);
-
-drawRoute({lat,lng},nearest[1],'red',(d2,t2,line2)=>{
-
-window.l2=line2;
-
-drawRoute({lat,lng},nearest[0],'green',(d1,t1,line1)=>{
-
-window.l1=line1;
-
-let h1=Math.floor(t1/3600);
-let m1=Math.round((t1%3600)/60);
-
-let h2=Math.floor(t2/3600);
-let m2=Math.round((t2%3600)/60);
-
-document.getElementById("info").innerHTML=
-"<b>📍 الموقع:</b> "+name+"<br><br>"+
-"<b>🟢 أقرب مركز:</b> "+nearest[0].name+"<br>"+
-"المسافة: "+(d1/1000).toFixed(1)+" كم<br>"+
-"الوقت: "+h1+" ساعة و "+m1+" دقيقة<br><br>"+
-"<b>🔴 أقرب مركز ثاني:</b> "+nearest[1].name+"<br>"+
-"المسافة: "+(d2/1000).toFixed(1)+" كم<br>"+
-"الوقت: "+h2+" ساعة و "+m2+" دقيقة";
-
-});
-
-});
-
-}
-
-select.onchange=function(){
-
-let city = cities.find(c=>c.name==this.value);
-if(!city) return;
-run(city.lat,city.lng,city.name);
-
-};
-
-map.on('click',function(e){
-run(e.latlng.lat,e.latlng.lng,"موقع من الخريطة");
 });
 
 </script>
