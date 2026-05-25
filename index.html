@@ -192,10 +192,23 @@ let route = data.routes[0];
 
 let coords = route.geometry.coordinates.map(c=>[c[1],c[0]]);
 
-let line = L.polyline(coords,{
-color:color,
-weight:5
-}).addTo(map);
+let options = {
+color: color,
+weight: color === 'green' ? 8 : 5,
+opacity: 0.9
+};
+
+// الأحمر متقطع
+if(color === 'red'){
+options.dashArray = '12,10';
+}
+
+let line = L.polyline(coords, options).addTo(map);
+
+// الأخضر فوق دائمًا
+if(color === 'green'){
+line.bringToFront();
+}
 
 cb(route.distance, route.duration, line);
 
