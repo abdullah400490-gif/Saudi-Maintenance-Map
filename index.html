@@ -150,14 +150,32 @@ L.marker([c.lat,c.lng]).addTo(map).bindPopup(c.name);
 // ======================
 // أقرب مركزين
 // ======================
-function nearestTwo(lat,lng){
+async function nearestTwo(lat,lng){
 
-return centers
-.map(c=>{
-return {...c, dist: map.distance([lat,lng],[c.lat,c.lng])};
-})
-.sort((a,b)=>a.dist-b.dist)
-.slice(0,2);
+let results = [];
+
+for (let c of centers){
+
+let response = await fetch(
+`https://router.project-osrm.org/route/v1/driving/${lng},${lat};${c.lng},${c.lat}?overview=false`
+);
+
+let data = await response.json();
+
+let route = data.routes[0];
+
+results.push({
+...c,
+distance: route.distance,
+duration: route.duration
+});
+
+}
+
+// ترتيب حسب الوقت الحقيقي
+results.sort((a,b)=>a.duration-b.duration);
+
+return results.slice(0,2);
 
 }
 
@@ -188,11 +206,11 @@ cb(route.distance, route.duration, line);
 // ======================
 // تشغيل النظام (مشترك)
 // ======================
-function run(lat,lng,name){
+async function run(lat,lng,name){
 
 map.setView([lat,lng],7);
 
-let nearest = nearestTwo(lat,lng);
+let nearest = await nearestTwo(lat,lng);
 
 if(window.l1) map.removeLayer(window.l1);
 if(window.l2) map.removeLayer(window.l2);
