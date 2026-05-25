@@ -90,7 +90,9 @@ const imageBounds = [
 [32.8, 56.5]  // شمال شرق
 ];
 
-L.imageOverlay(imageUrl, imageBounds).addTo(map);
+L.imageOverlay('saudi-map.png', imageBounds, {
+opacity: 0.35
+}).addTo(map);
 
 // ======================
 // مراكز الصيانة
