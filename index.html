@@ -32,12 +32,18 @@ box-shadow:0 0 10px rgba(0,0,0,0.2);
 text-align:center;
 }
 
-select{
+select,#search{
 width:100%;
 padding:8px;
 margin-top:8px;
 border-radius:8px;
 border:1px solid #ccc;
+box-sizing:border-box;
+}
+
+#search{
+direction:rtl;
+text-align:right;
 }
 
 /* ✅ التعديل هنا فقط */
@@ -91,6 +97,8 @@ display:block;
 
 <b>نظام المناطق النائية ومراكز الصيانة للدفع الرقمي</b>
 
+<input id="search" type="text" placeholder="🔍 ابحث عن مدينة..." autocomplete="off">
+
 <select id="city">
 <option>اختر مدينة أو اضغط عليها من الخريطة</option>
 </select>
@@ -126,6 +134,18 @@ const imageBounds = [
 L.imageOverlay('saudi-map.png', imageBounds, {
 opacity:0.12
 }).addTo(map);
+
+// ======================
+// أيقونة صفراء للموقع المختار
+// ======================
+const yellowIcon = new L.Icon({
+iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+iconSize:[25,41],
+iconAnchor:[12,41],
+popupAnchor:[1,-34],
+shadowSize:[41,41]
+});
 
 // ======================
 // مراكز الصيانة
@@ -209,6 +229,30 @@ opt.textContent=c.name;
 select.appendChild(opt);
 });
 
+// ======================
+// البحث عن مدينة
+// ======================
+let search = document.getElementById("search");
+
+search.oninput=function(){
+
+let term=this.value.trim();
+
+// إظهار/إخفاء الخيارات حسب البحث
+for(let opt of select.options){
+if(opt.value==="" || opt.index===0){ continue; }
+opt.hidden = term!=="" && !opt.textContent.includes(term);
+}
+
+// إذا طابق البحث اسم مدينة تماماً شغّل الحساب مباشرة
+let city = cities.find(c=>c.name===term);
+if(city){
+select.value=city.name;
+run(city.lat,city.lng,city.name);
+}
+
+};
+
 // باقي الكود بدون تغيير
 centers.forEach(c=>{
 L.marker([c.lat,c.lng])
@@ -218,9 +262,8 @@ L.marker([c.lat,c.lng])
 
 async function nearestTwo(lat,lng){
 
-let results = [];
-
-for (let c of centers){
+// إرسال كل الطلبات دفعة واحدة (بالتوازي) بدل واحد تلو الآخر
+let results = await Promise.all(centers.map(async c=>{
 
 let response = await fetch(
 `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${c.lng},${c.lat}?overview=false`
@@ -230,13 +273,13 @@ let data = await response.json();
 
 let route = data.routes[0];
 
-results.push({
+return {
 ...c,
 distance: route.distance,
 duration: route.duration
-});
+};
 
-}
+}));
 
 results.sort((a,b)=>a.duration-b.duration);
 
@@ -280,16 +323,19 @@ async function run(lat,lng,name){
 
 map.setView([lat,lng],7);
 
-let nearest = await nearestTwo(lat,lng);
+// ضع العلامة فوراً قبل انتظار حساب المسارات
+if(window.clickedMarker){
+map.removeLayer(window.clickedMarker);
+}
+window.clickedMarker = L.marker([lat,lng],{icon:yellowIcon}).addTo(map);
 
 if(window.l1) map.removeLayer(window.l1);
 if(window.l2) map.removeLayer(window.l2);
 
-if(window.clickedMarker){
-map.removeLayer(window.clickedMarker);
-}
+document.getElementById("info").innerHTML=
+"<b>📍 الموقع:</b> "+name+"<br><br>⏳ جاري حساب أقرب مركز...";
 
-window.clickedMarker = L.marker([lat,lng]).addTo(map);
+let nearest = await nearestTwo(lat,lng);
 
 drawRoute({lat,lng},nearest[1],'red',(d2,t2,line2)=>{
 
