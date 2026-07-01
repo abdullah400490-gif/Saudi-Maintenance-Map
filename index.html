@@ -97,7 +97,7 @@ display:block;
 
 <b>نظام المناطق النائية ومراكز الصيانة للدفع الرقمي</b>
 
-<input id="search" type="text" placeholder="🔍 ابحث عن مدينة..." autocomplete="off">
+<input id="search" type="text" placeholder="🔍 اكتب أي مدينة سعودية ثم اضغط Enter" autocomplete="off">
 
 <select id="city">
 <option>اختر مدينة أو اضغط عليها من الخريطة</option>
@@ -234,24 +234,76 @@ select.appendChild(opt);
 // ======================
 let search = document.getElementById("search");
 
+// إزالة العلامة والخطوط ومعلومات البحث
+function clearSelection(){
+if(window.clickedMarker){ map.removeLayer(window.clickedMarker); window.clickedMarker=null; }
+if(window.l1){ map.removeLayer(window.l1); window.l1=null; }
+if(window.l2){ map.removeLayer(window.l2); window.l2=null; }
+document.getElementById("info").innerHTML="";
+select.selectedIndex=0;
+}
+
+// فلترة القائمة أثناء الكتابة (للمدن الموجودة في القائمة)
 search.oninput=function(){
 
 let term=this.value.trim();
 
-// إظهار/إخفاء الخيارات حسب البحث
+// عند مسح خانة البحث: احذف المدينة المبحوث عنها والخطوط
+if(term===""){
+clearSelection();
+}
+
 for(let opt of select.options){
-if(opt.value==="" || opt.index===0){ continue; }
+if(opt.index===0){ continue; }
 opt.hidden = term!=="" && !opt.textContent.includes(term);
 }
 
-// إذا طابق البحث اسم مدينة تماماً شغّل الحساب مباشرة
-let city = cities.find(c=>c.name===term);
-if(city){
-select.value=city.name;
-run(city.lat,city.lng,city.name);
+};
+
+// البحث في كل مدن السعودية عند الضغط على Enter
+search.onkeydown=function(e){
+if(e.key==="Enter"){
+searchCity(this.value.trim());
+}
+};
+
+async function searchCity(term){
+
+if(!term) return;
+
+// إذا كانت من المدن الموجودة مسبقاً استخدم إحداثياتها مباشرة
+let local = cities.find(c=>c.name===term || c.name.includes(term));
+if(local){
+select.value=local.name;
+run(local.lat,local.lng,local.name);
+return;
 }
 
-};
+document.getElementById("info").innerHTML="⏳ جاري البحث عن المدينة...";
+
+try{
+
+let res = await fetch(
+`https://nominatim.openstreetmap.org/search?format=json&countrycodes=sa&limit=1&accept-language=ar&q=${encodeURIComponent(term)}`
+);
+
+let data = await res.json();
+
+if(!data.length){
+document.getElementById("info").innerHTML="⚠️ لم يتم العثور على المدينة داخل السعودية";
+return;
+}
+
+let place = data[0];
+let cityName = place.display_name.split(",")[0];
+
+run(parseFloat(place.lat), parseFloat(place.lon), cityName);
+
+}catch(err){
+document.getElementById("info").innerHTML="⚠️ حدث خطأ أثناء البحث";
+}
+
+}
 
 // باقي الكود بدون تغيير
 centers.forEach(c=>{
@@ -260,10 +312,17 @@ L.marker([c.lat,c.lng])
 .bindPopup(c.name);
 });
 
-async function nearestTwo(lat,lng){
+async function nearestTwo(lat,lng,skipName){
+
+// استبعاد مركز نفس المدينة المبحوث عنها (حتى نرسم خطين حقيقيين)
+let list = centers;
+if(skipName && skipName!=="موقع من الخريطة"){
+let filtered = centers.filter(c=>!c.name.includes(skipName));
+if(filtered.length>=2){ list = filtered; }
+}
 
 // إرسال كل الطلبات دفعة واحدة (بالتوازي) بدل واحد تلو الآخر
-let results = await Promise.all(centers.map(async c=>{
+let results = await Promise.all(list.map(async c=>{
 
 let response = await fetch(
 `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${c.lng},${c.lat}?overview=false`
@@ -335,7 +394,7 @@ if(window.l2) map.removeLayer(window.l2);
 document.getElementById("info").innerHTML=
 "<b>📍 الموقع:</b> "+name+"<br><br>⏳ جاري حساب أقرب مركز...";
 
-let nearest = await nearestTwo(lat,lng);
+let nearest = await nearestTwo(lat,lng,name);
 
 drawRoute({lat,lng},nearest[1],'red',(d2,t2,line2)=>{
 
